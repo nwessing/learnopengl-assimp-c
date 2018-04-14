@@ -309,11 +309,7 @@ void render(Model *model, ShaderProgram objectShader, u32 lampVAO, ShaderProgram
 	shaderProgramSetFloat(objectShader, "spotLight.linear", 0.09f);
 	shaderProgramSetFloat(objectShader, "spotLight.quadratic", 0.032f);
 
-	shaderProgramSetInt(objectShader, "usedPointLights", 0);
-
-	assert(glGetError() == GL_NO_ERROR);
-	model_draw(model, objectShader);
-	assert(glGetError() == GL_NO_ERROR);
+	shaderProgramSetInt(objectShader, "usedPointLights", 4);
 
 	vec3 pointLightPositions[] = {
 		{ 0.7f,  20.0f,  2.0f },
@@ -328,19 +324,6 @@ void render(Model *model, ShaderProgram objectShader, u32 lampVAO, ShaderProgram
 		{ 1.0f, 1.0f, 1.0f, },
 		{ 1.0f, 0.0f, 0.0f, }
 	};
-
-	glUseProgram(lampShader);
-	shaderProgramSetMat4(lampShader, "view", view);
-	shaderProgramSetMat4(lampShader, "projection", projection);
-	for (int i = 0; i < 4; i++) {
-		mat4 lampModel = GLM_MAT4_IDENTITY_INIT;
-		glm_translate(lampModel, pointLightPositions[i]);
-		glm_scale(lampModel, (vec3) { 0.2f, 0.2f, 0.2f });
-		shaderProgramSetMat4(lampShader, "model", lampModel);
-		shaderProgramSetVec3(lampShader, "lightColor", pointLightColors[i]);
-		glBindVertexArray(lampVAO);
-		glDrawArrays(GL_TRIANGLES, 0, 36);
-	}
 
 	char uniformNameBuf[100];
 	for (int i = 0; i < 4; i++) {
@@ -365,5 +348,22 @@ void render(Model *model, ShaderProgram objectShader, u32 lampVAO, ShaderProgram
 		
 		sprintf(uniformNameBuf, "pointLights[%i].specular", i);
 		shaderProgramSetVec3(objectShader, uniformNameBuf, pointLightColors[i]);
+	}
+
+	assert(glGetError() == GL_NO_ERROR);
+	model_draw(model, objectShader);
+	assert(glGetError() == GL_NO_ERROR);
+
+	glUseProgram(lampShader);
+	shaderProgramSetMat4(lampShader, "view", view);
+	shaderProgramSetMat4(lampShader, "projection", projection);
+	for (int i = 0; i < 4; i++) {
+		mat4 lampModel = GLM_MAT4_IDENTITY_INIT;
+		glm_translate(lampModel, pointLightPositions[i]);
+		glm_scale(lampModel, (vec3) { 0.2f, 0.2f, 0.2f });
+		shaderProgramSetMat4(lampShader, "model", lampModel);
+		shaderProgramSetVec3(lampShader, "lightColor", pointLightColors[i]);
+		glBindVertexArray(lampVAO);
+		glDrawArrays(GL_TRIANGLES, 0, 36);
 	}
 }

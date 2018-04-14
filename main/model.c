@@ -17,6 +17,10 @@ void model_processNode(Model *model, const aiNode *node, const aiScene *scene, u
 Mesh model_processMesh(Model *model, const aiMesh *mesh, const aiScene *scene);
 Texture *loadMaterialTextures(Model *model, const aiMaterial *mat, i32 type, i8 *typeName, u32 *numTextures);
 
+static Texture *cachedTextures = NULL;
+static u32 numCachedTextures = 0;
+static u32 sizeCachedTextures = 0;
+
 Model loadModel(char *path)
 {
 	Model model;
@@ -120,12 +124,12 @@ Mesh model_processMesh(Model *model, const aiMesh *mesh, const aiScene *scene)
 	if (numTextures > 0) {
 		textures = calloc(numTextures, sizeof(Texture));
 
-		if (diffuseMaps) {
+		if (diffuseMaps != NULL) {
 			memcpy(textures, diffuseMaps, sizeof(Texture) * numDiffuseMaps);
 			free(diffuseMaps);
 		}
 
-		if (specularMaps) {
+		if (specularMaps != NULL) {
 			memcpy(&textures[numDiffuseMaps], specularMaps, sizeof(Texture) * numSpecularMaps);
 			free(specularMaps);
 		}
@@ -150,24 +154,49 @@ Texture *loadMaterialTextures(Model *model, const aiMaterial *mat, i32 type, i8 
 		return NULL;
 	}
 
+	if (cachedTextures == NULL) {
+		sizeCachedTextures = 2;
+		cachedTextures = calloc(sizeCachedTextures, sizeof(Texture));
+	}
+
 	Texture *textures = calloc(*numTextures, sizeof(Texture));
 
 	for (u32 i = 0; i < *numTextures; i++) {
 		aiString str;
 		aiGetMaterialTexture(mat, type, i, &str, NULL, NULL, NULL, NULL, NULL, NULL);
 
-		u32 dirLength = strlen(model->directory);
-		i8 *texturePath = calloc(str.length + dirLength + 2, sizeof(u8));
-		strcpy(texturePath, model->directory);
-		strcat(texturePath, "/");
-		strcat(texturePath, str.data);
+		Texture *cachedTexture = NULL;
+		for (u32 iCache = 0; iCache < numCachedTextures; ++iCache) {
+			if (strcmp(str.data, cachedTextures[iCache].path.data) == 0) {
+				cachedTexture = &cachedTextures[iCache];
+			}
+		}
 
-		Texture texture = {0};
-		texture.id = initTexture(texturePath);
-		texture.type = typeName;
-		texture.path = str;
-		textures[i] = texture;
-		free(texturePath);
+		if (cachedTexture == NULL) {
+			u32 dirLength = strlen(model->directory);
+			i8 *texturePath = calloc(str.length + dirLength + 2, sizeof(i8));
+			strcpy(texturePath, model->directory);
+			strcat(texturePath, "/");
+			strcat(texturePath, str.data);
+
+			Texture texture = {0};
+			texture.id = initTexture(texturePath);
+			texture.type = typeName;
+			texture.path = str;
+			textures[i] = texture;
+			free(texturePath);
+
+			if (numCachedTextures == sizeCachedTextures) {
+				sizeCachedTextures = sizeCachedTextures * 2;
+				cachedTextures = realloc(cachedTextures, sizeCachedTextures * sizeof(Texture));
+			}
+
+			cachedTextures[numCachedTextures] = texture;
+			++numCachedTextures;
+		}
+		else {
+			textures[i] = *cachedTexture;
+		}
 	}
 
 	return textures;
